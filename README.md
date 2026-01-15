@@ -1,13 +1,17 @@
 # diff_pde: snumerically solves a system of 1d nonlinear PDEs of diffusive type.
 
 Currently it's just one function that you'll need. For $u = u(t, x)$, 
-$$
+```math
+\begin{equation}
     \frac{\partial u}{\partial t} = \frac{\partial}{\partial x} \left( D \frac{\partial u}{\partial x} \right) + f,
-$$
+\end{equation}
+```
 where 
-$$
+```math
+\begin{equation}
     D = D(u, t, x), f = f(u, t, x).
-$$
+\end{equation}
+```
 
 You feed the right-hand sides, as well as initial/boundary conditions, and get the
 solution on a grid of spatial grid x time grid. 
