@@ -1,17 +1,28 @@
 from diff_pde.lines_method import solve_diff_pde
 import numpy as np
 
-D = 3
-L = 3.0
-T_init = 1
-T_right = 0.5
+D1 = 8
+D2 = 0.5
+L1 = 2.0
+L2 = 1.0
+T_init_1 = 1
+T_init_2 = 2
+T_right = 1.5
 
-def T0(x):
+def T_init(x):
     x = np.asarray(x)
-    return np.ones(x.size) * T_init
+    return (T_init_1 * np.heaviside(-(x-L1), 0.5) +
+            T_init_2 * np.heaviside((x-L1), 0.5)
+                )
+
+def D(u, t, x):
+    x = np.asarray(x)
+    return (D1 * np.heaviside(-(x-L1), 0.5) +
+            D2 * np.heaviside((x-L1), 0.5)
+                )
 
 xi = 0.0
-xf = L
+xf = L1 + L2
 Nx=501
 x_grid = np.linspace(xi, xf, Nx)
 
@@ -25,7 +36,7 @@ x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
                         x_grid=x_grid,
                         t_span=[ti, tf],
                         t_eval=t_ev,
-                        u0_list=[T0],
+                        u0_list=[T_init],
                         bc_type=[[
                             "neumann", # on the left
                             "dirichlet" # on the right
@@ -49,7 +60,7 @@ fig, ax = plt.subplots(ncols=1, figsize=(6, 5), constrained_layout=True)
 # line_fix, = ax.plot(x_, frames[0], c='k', alpha=0.2)
 line_fix_init, = ax.plot(x_, frames[0], c='k', alpha=0.2, ls='--',
                           label = 'Initial distribution of T')
-line_fix_end, = ax.plot(x_, T_init*np.ones(x_.size), c='k', alpha=0.2,
+line_fix_end, = ax.plot(x_, T_right*np.ones(x_.size), c='k', alpha=0.2,
                          label = 'Final distribution of T')
 
 

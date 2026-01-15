@@ -1,6 +1,8 @@
 # diff_pde: snumerically solves a system of 1d nonlinear PDEs of diffusive type.
 
-Currently it's just one function that you'll need. For $\vec{u} = [u\_1(t, x), ..., u\_m(t, x)]$, on a spatial domain of $x = [x\_i, x\_f]$, 
+Currently it's just one function that you'll need for solving the 
+equations below for the vector $\vec{u} = [u\_1(t, x), ..., u\_m(t, x)]$, 
+on a spatial domain of $x = [x\_i, x\_f]$, 
 ```math
 \begin{equation}
     \frac{\partial u_j}{\partial t} = \frac{\partial}{\partial x} \left( D_j \frac{\partial u_j}{\partial x} \right) + f_j,\,\,j=1...m,
@@ -9,7 +11,7 @@ Currently it's just one function that you'll need. For $\vec{u} = [u\_1(t, x), .
 where 
 ```math
 \begin{equation}
-    D_j = D_j(u, t, x), f_j = f_j(u, t, x).
+    D_j = D_j(u, t, x), \,\,\,f_j = f_j(u, t, x).
 \end{equation}
 ```
 The initial conditions are set as:
@@ -19,7 +21,7 @@ The initial conditions are set as:
 \end{equation}
 ```
 and for boundary conditions there are three options. 
- - Periodic (only works for all fields at once, you
+ - Periodic (only works for all fields at once, i.e. you
 cannot set periodic BCs for $u\_1$ and Dirichlet BCs for $u\_2$):
 ```math
 \begin{equation}
@@ -29,7 +31,7 @@ cannot set periodic BCs for $u\_1$ and Dirichlet BCs for $u\_2$):
  - Dirichlet:
 ```math
 \begin{equation}
-    u_j(t, x_{i\f}) = g_{j, \mathrm{left/right}}(t),
+    u_j(t, x_{i/f}) = g_{j, \mathrm{left/right}}(t),
 \end{equation}
 ```
 
@@ -73,32 +75,34 @@ The main idea is very simple: to solve for $m$ fields $u_j$, you provide:
  - an m-element list of coefficients D, each is either a scalar or a function $D(u, t, x)$,
  - an m-element list of initial conditions: functions $u_0(x)$,
  - an m-element list of 2-element lists of boundary conditions: $[g_\mathrm{left}(t), g_\mathrm{right}(t)]$.
- - a spatial grid $x_\mathrm{grid}$ as at numpy array; it defines nods at which the fields will be defined as grid functions.
+ - a spatial grid $x_\mathrm{grid}$ as a numpy array; it defines nods at which the fields will be defined as grid functions.
  - a time grid at which the fields are to be returned.
 
 As a return, you get the m-element list of fields, each is a numpy array (x.size, t.size).
 
 ## Example 1. Heat equation.
-Let's assume there's a homogenious metallic rod of length $L$ heated to a temperature $T(x)$. 
+Let's assume there's a homogenious metallic rod of length $L$ heated to a temperature $T_i(x)$. 
 Starting from time $t=0$, the left edge of the rod is kept isolated ($\partial\_x T|\_{x=0}=0$),
-while the right edge is kept at a temperature $T\_0$. This problem is described by the equation:
+while the right edge is kept at a temperature $T\_\mathrm{right}$. The temperature distribution
+as a functtion of time $T(t, x)$ is described by the equation:
 ```math
 \begin{split}
 \partial_t T(t, x) = D \partial^2_x T(t, x),\\
-\partial_x T|_{x=x_i} = 0,\\
-T(t, x_f) = T_0,\\
-T(t=0, x) = T(x).
+\partial_x T|_{x=0} = 0,\\
+T(t, L) = \_\mathrm{right},\\
+T(t=0, x) = T_i(x).
 \end{split}
 ```
 
 Here the coefficient $D$, the diffusion coefficient, is a property of the rod, and assumed to be a scalar. Note that
-the final stationary temperature distribution is easily guessed: $T\_\mathrm{final}(x) \equiv T\_0$. Here is the code 
+the final stationary temperature distribution is easily guessed: $T\_\mathrm{final}(x) \equiv \_\mathrm{right}$. Here is the code 
 for the numerical solution:
 ```python
 from diff_pde.lines_method import solve_diff_pde
 import numpy as np
 
 D = 3
+L = 3.0
 T_init = 1
 T_right = 0.5
 
@@ -107,7 +111,7 @@ def T0(x):
     return np.ones(x.size) * T_init
 
 xi = 0.0
-xf = 3.0
+xf = L
 Nx=501
 x_grid = np.linspace(xi, xf, Nx)
 
@@ -134,30 +138,156 @@ x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
                                  ], 
                         )
 ```
-In the end, you have an array $T_$ of shape: (x\_.size, t\_ev.size).
+In the end, you have an array $T\_$ of shape: (x\_.size, t\_ev.size).
 
-Run the code `simple_heat_anim.py` to see this solution animated.
+You can run the code `simple_heat_anim.py` from terminal to see this solution animated.
 
 ## Example 2. Brusselator.
-[The Brusselator equations](https://en.wikipedia.org/wiki/Brusselator) describe an autocatalyctic reaction: 
+[The Brusselator equations](https://en.wikipedia.org/wiki/Brusselator) describe an autocatalyctic reaction
+of two chemicals, which concentration in time and space we shall denote $X(t, x)$ and $Y(t, x)$. Two chemicals
+react with each other, as well as diffuse in space, which in one-dimentional case
+results in the following reactoin-diffusion equations:
+
+```math
+\begin{split}
+\partial_t X = A - (B+1)X + X^2Y + \partial_x(D_x \partial_x X),\\
+\partial_t Y = BX - X^2Y + \partial_x(D_y \partial_x Y),\\
++ \mathrm{some~initial~conditions}\\
++ \mathrm{some~boundary~conditions}
+\end{split}
+```
+For boundary conditions, it makes sense to adopt either
+periodic BCs (as if a small domain of a bigger picture is being simulated)
+ or Neumann ones (absense of flux through the boundaries). For illustration purposes, let's
+take diffusion coeffients $D\_x$ and $D_\y$ sligtly spatially-dependent and non-linear (u-dependent).
+
+```python
+from diff_pde.lines_method import solve_diff_pde
+import numpy as np
+
+A = 2
+B = 4
+Dx0 = 1.6e-3
+Dy0 = 8e-3
+
+
+xi = 0.0
+xf = 3.0
+sgm = 0.1
+
+Nx=501
+ti = 0
+tf = 150
+Nt = int(3 * (tf - ti))
+t_ev = np.linspace(ti, tf, Nt)
+
+def fx(u, t, x):
+    X_, Y_ = u
+    return A - (B+1) * X_ + X_**2 * Y_ 
+
+def fy(u, t, x):
+    X_, Y_ = u
+    return B * X_  - X_**2 * Y_ 
+
+def x0(x):
+    return A + 0.1 * np.cos(2 * np.pi * (x - xi) / (xf - xi) )**2
+
+def y0(x):
+    return B/A + 0.1 * np.sin(2 * np.pi * (x - xi) / (xf - xi) )**2
+
+def Dx(u, t, x):
+    X_, Y_ = u
+    return (1+x)/(2+x) * Dx0 * (1 + 1/X_) / (1 + 1/Y_)
+
+def Dy(u, t, x):
+    X_, Y_ = u
+    return (1.1+x)/(2.1+x) * Dy0  * (1.1 + 0.99/X_) / (1.01 + 0.98/Y_)
+
+
+x_grid = np.linspace(xi, xf, Nx)
+x_ , (X_, Y_) = solve_diff_pde(rhs_list = [fx, fy],
+                        D_list = [Dx, Dy],
+                        x_grid=x_grid,
+                        t_span=[ti, tf],
+                        t_eval=t_ev,
+                        u0_list=[x0, y0],
+                        rtol=1e-7,
+                        bc_type="neumann"
+                        # bc_type="dirichlet"
+                        )
+```
+You can run the code `brusselator_anim.py` from terminal to see this solution animated.
+
+## Example 3. Discontinuous diffusion coefficient.
+
+Let us reformulate slightly the problem from the first example. Imagine two rods,
+with lengths $L\_1, L\_2$, diffusion coeffients $D\_1, D\_2$, heated to temperatures
+$T\_\mathrm{init, 1}, T\_\mathrm{init, 2}$. At the time $t=0$, one connects these two rods, 
+while, as before, isolating the resulting rod of length $L\_1+L\_2$ on the left edge and keeping 
+it at a constant temperature $T\_\mathrm{right}$ at the right edge. 
+
+To find the
+distribution of the temperature on this resulting rod, we would need to evolve 
+$T\_1(t, x)$ and $T\_2(t, x)$ with different diffusion coefficients, keeping
+$T\_1(t, L\_1) = T\_2(t, L\_1); \,\,\, D\_1 \partial\_x T\_1(t, L\_1) = D\_2 \partial\_x  T\_2(t, L\_1)$.
+Fortunately, since the code is written in a conservative manner, we can simply look for the solution
+at the whole $x = [0, L\_1 + L\_2]$ with discontinuous diffusion coefficient.
 
 
 ```python
-import numpy as np
 from diff_pde.lines_method import solve_diff_pde
+import numpy as np
 
-def f1(U, t, x):
-    u1, u2 = U
-    return ...
+D1 = 8
+D2 = 0.5
+L1 = 2.0
+L2 = 1.0
+T_init_1 = 1
+T_init_2 = 2
+T_right = 1.5
 
-def f2(U, t, x):
-    u1, u2 = U
-    return ...
+def T_init(x):
+    x = np.asarray(x)
+    return (T_init_1 * np.heaviside(-(x-L1), 0.5) +
+            T_init_2 * np.heaviside((x-L1), 0.5)
+                )
 
+def D(u, t, x):
+    x = np.asarray(x)
+    return (D1 * np.heaviside(-(x-L1), 0.5) +
+            D2 * np.heaviside((x-L1), 0.5)
+                )
 
+xi = 0.0
+xf = L1 + L2
+Nx=501
+x_grid = np.linspace(xi, xf, Nx)
+
+ti = 0
+tf = 5
+Nt = 303
+t_ev = np.linspace(ti, tf, Nt)
+
+x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
+                        D_list = [D],
+                        x_grid=x_grid,
+                        t_span=[ti, tf],
+                        t_eval=t_ev,
+                        u0_list=[T_init],
+                        bc_type=[[
+                            "neumann", # on the left
+                            "dirichlet" # on the right
+                            ]
+                                 ],
+                        bound_conds = [[
+                            lambda t: 0*t, # no-flux on the left
+                            lambda t: 0*t +  T_right # constant T_right on the right
+                            ]
+                                 ], 
+                        )
 
 ```
-
+You can run the code `discontin_heat_anim.py` from terminal to see this solution animated.
 
 
 ## Details of the numerical method. 

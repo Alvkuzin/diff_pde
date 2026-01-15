@@ -1,9 +1,5 @@
 from diff_pde.lines_method import solve_diff_pde
 import numpy as np
-from scipy.integrate import trapezoid
-from matplotlib.animation import FuncAnimation
-
-from matplotlib import pyplot as plt
 
 A = 2
 B = 4
@@ -56,6 +52,11 @@ x_ , (X_, Y_) = solve_diff_pde(rhs_list = [fx, fy],
                         # bc_type="dirichlet"
                         )
 
+
+from scipy.integrate import trapezoid
+from matplotlib.animation import FuncAnimation
+
+from matplotlib import pyplot as plt
 Xtot, Ytot = trapezoid(X_, x_, axis=0), trapezoid(Y_, x_, axis=0)
 frames = X_.T 
 frames_y = Y_.T 
