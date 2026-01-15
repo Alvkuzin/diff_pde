@@ -1,0 +1,8 @@
+pyproject.toml
+src/diff_pde/__init__.py
+src/diff_pde/lines_method_vec.py
+src/diff_pde.egg-info/PKG-INFO
+src/diff_pde.egg-info/SOURCES.txt
+src/diff_pde.egg-info/dependency_links.txt
+src/diff_pde.egg-info/requires.txt
+src/diff_pde.egg-info/top_level.txt
