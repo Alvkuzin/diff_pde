@@ -337,7 +337,7 @@ def solve_diff_pde(
     Returns
     -------
     xi : ndarray (N,)
-    sol : OdeResult with y packed as [u0_block, u1_block, ..., u_{m-1}_block]
+    sol : Solutions [u0_block, u1_block, ..., u_{m-1}_block]
     """
     m = len(rhs_list)
     if rhs_args_list is None:
@@ -381,8 +381,7 @@ def solve_diff_pde(
     else:
         xi = x_grid
     N = xi.size
-    # print(if_periodic)
-    # print(N)
+
     # Normalize diffusion coefficients to callables
     D_callables = [_as_D_callable(Dj, N) for Dj in D_list]
 
@@ -440,7 +439,6 @@ def solve_diff_pde(
                 raise ValueError(f"D[{j}] must return shape (N,), got {Dc.shape}")
 
             # dirichlet values and Neumann gradients if needed
-
             bcL_, bcR_ = bound_conds[j]
             diff = _diffusion_conservative_1d(Dc, uj, x_grid, bc_to_use[j],
                                               g_func=[bcL_(t), bcR_(t)],

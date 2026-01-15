@@ -311,17 +311,16 @@ is this system actually being solved. It is important to use `method='BDF'` (def
 or any other _implicit_ methods which for the equation $dU/dt=f$ not just make an eulerian step
 $U\_{k+1} = U\_{k} + \Delta t f(U\_{k}, t_k)$ but solve the nonlineear equation
 $U\_{k+1} = U\_{k} + \Delta t f(U\_{k+1}, t_{k+1})$ at each time step. This is the equivalent
-of using the implicitly stable numerical scheme.  
+of using the implicitly stable numerical scheme. 
 
-Outsourcing the ODEs to `solve_ivp` also allows not to think about time steps, as they are made automatic,
+Outsourcing the ODEs to `solve_ivp` also allows not to think about time steps, as they are made automaticly,
 later returning solution at any desirable $t\_\mathrm{eval}$. The choice of a spatial grid, though, is the responsibility
-of a user. 
+of a user. In case of periodic boundary conditions, the effective x-grid is used, which is an original x-grid with 
+the rightmost point omitted. The rightmost point for the solutions $u\_j$ is then manually added as $u\_j(t, x\_f) \equiv u\_j(t, x\_i)$
 
 I attempted to write a code with the second-order spatial approximations. I tested it on some 'good' functions,
 and the metric $R = \sqrt{\frac{1}{N\_x} \sum_ij (u^{ij}\_\mathrm{numerical} - u^{ij}\_\mathrm{analytical})^2 }$ indeed behaves as
-$R \propto 1/N\_x^2$. The test with the discontinuous diffusion coefficient revealed $R \propto 1/N\_x$, and  
-some non equally spaced grids yield $R \propto 1/N\_x$ as well (which may be the indication of using wrong formulas
-for the non-linear grids).
+$R \propto 1/N\_x^2$. The test with the discontinuous diffusion coefficient revealed $R \propto 1/N\_x$.
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 ---
