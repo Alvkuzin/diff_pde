@@ -95,7 +95,7 @@ T(t=0, x) = T_i(x).
 ```
 
 Here the coefficient $D$, the diffusion coefficient, is a property of the rod, and assumed to be a scalar. Note that
-the final stationary temperature distribution is easily guessed: $T\_\mathrm{final}(x) \equiv \_\mathrm{right}$. Here is the code 
+the final stationary temperature distribution is easily guessed: $T\_\mathrm{final}(x) \equiv T\_\mathrm{right}$. Here is the code 
 for the numerical solution:
 ```python
 from diff_pde.lines_method import solve_diff_pde
@@ -138,15 +138,15 @@ x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
                                  ], 
                         )
 ```
-In the end, you have an array $T\_$ of shape: (x\_.size, t\_ev.size).
+In the end, you have an array `T\_` of shape: (x\_.size, t\_ev.size).
 
 You can run the code `simple_heat_anim.py` from terminal to see this solution animated.
 
 ## Example 2. Brusselator.
 [The Brusselator equations](https://en.wikipedia.org/wiki/Brusselator) describe an autocatalyctic reaction
-of two chemicals, which concentration in time and space we shall denote $X(t, x)$ and $Y(t, x)$. Two chemicals
+of two chemicals, which concentrations we shall denote $X(t, x)$ and $Y(t, x)$. Two chemicals
 react with each other, as well as diffuse in space, which in one-dimentional case
-results in the following reactoin-diffusion equations:
+results in the following reaction-diffusion system of equations:
 
 ```math
 \begin{split}
@@ -159,7 +159,7 @@ results in the following reactoin-diffusion equations:
 For boundary conditions, it makes sense to adopt either
 periodic BCs (as if a small domain of a bigger picture is being simulated)
  or Neumann ones (absense of flux through the boundaries). For illustration purposes, let's
-take diffusion coeffients $D\_x$ and $D_\y$ sligtly spatially-dependent and non-linear (u-dependent).
+take diffusion coeffients $D\_x$ and $D\_y$ sligtly spatially-dependent and non-linear (u-dependent).
 
 ```python
 from diff_pde.lines_method import solve_diff_pde
@@ -229,7 +229,7 @@ it at a constant temperature $T\_\mathrm{right}$ at the right edge.
 To find the
 distribution of the temperature on this resulting rod, we would need to evolve 
 $T\_1(t, x)$ and $T\_2(t, x)$ with different diffusion coefficients, keeping
-$T\_1(t, L\_1) = T\_2(t, L\_1); \,\,\, D\_1 \partial\_x T\_1(t, L\_1) = D\_2 \partial\_x  T\_2(t, L\_1)$.
+$T\_1(t, L\_1) = T\_2(t, L\_1)$ and  $D\_1 \partial\_x T\_1(t, L\_1) = D\_2 \partial\_x  T\_2(t, L\_1)$.
 Fortunately, since the code is written in a conservative manner, we can simply look for the solution
 at the whole $x = [0, L\_1 + L\_2]$ with discontinuous diffusion coefficient.
 
@@ -291,9 +291,37 @@ You can run the code `discontin_heat_anim.py` from terminal to see this solution
 
 
 ## Details of the numerical method. 
+This code is written using the method of lines. It means that the desired solution $u(x)$ is approximated as a grid function
+at a grid $x\_g: u(x\_i) = u\_i$, making a vector of $u\_i, i=1,...,N$. Then the right side of the equation is approximated as
+```math
+\begin{equation}
+\partial_x (D \partial_x u) + f \approx L u_i + f(u_i, t, x_i),
+\end{equation}
+```
+where $L$ is an operator acting on a vector $u\_i$, so that $L u\_i$ is an approximation of the diffusion part,
 
+and the partial differential equation becomes the system of ODEs:
+```math
+\begin{equation}
+\frac{\mathrm{d} u_i}{\mathrm{d} t} \approx L u_i + f(u_i, t, x_i).
+\end{equation}
+```
+This system is solved using `scipy.integrate.solve_ivp`, which allows us to avoid thinking how 
+is this system actually being solved. It is important to use `method='BDF'` (default) or `method='Radau'`,
+or any other _implicit_ methods which for the equation $dU/dt=f$ not just make an eulerian step
+$U\_{k+1} = U\_{k} + \Delta t f(U\_{k}, t_k)$ but solve the nonlineear equation
+$U\_{k+1} = U\_{k} + \Delta t f(U\_{k+1}, t_{k+1})$ at each time step. This is the equivalent
+of using the implicitly stable numerical scheme.  
 
-## License 
+Outsourcing the ODEs to `solve_ivp` also allows not to think about time steps, as they are made automatic,
+later returning solution at any desirable $t\_\mathrm{eval}$. The choice of a spatial grid, though, is the responsibility
+of a user. 
+
+I attempted to write a code with the second-order spatial approximations. I tested it on some 'good' functions,
+and the metric $R = \sqrt{\frac{1}{N\_x} \sum_ij (u^{ij}\_\mathrm{numerical} - u^{ij}\_\mathrm{analytical})^2 }$ indeed behaves as
+$R \propto 1/N\_x^2$. The test with the discontinuous diffusion coefficient revealed $R \propto 1/N\_x$, and  
+some non equally spaced grids yield $R \propto 1/N\_x$ as well (which may be the indication of using wrong formulas
+for the non-linear grids).
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 ---
