@@ -1,25 +1,30 @@
-# diff_pde: snumerically solves a system of 1d nonlinear PDEs of diffusive type.
+# diff_pde: numerical solution of a system of 1d nonlinear PDEs of diffusive type.
 
-Currently it's just one function that you'll need for solving the 
-equations below for the vector $\vec{u} = [u\_1(t, x), ..., u\_m(t, x)]$, 
+One function that  give you the solution.
+
+The purpose of this package is to solve one-dimensional partial differential equations of parabolic type (heat/diffusion type equations). The package can handle one equation or a system, linear and non-linear cases.
+
+In the most general way, the problem is formulated like this. For the vector of unknown fields $\vec{u} = [u\_1(t, x), ..., u\_m(t, x)]$, 
 on a spatial domain of $x = [x\_i, x\_f]$, 
 ```math
 \begin{equation}
-    \frac{\partial u_j}{\partial t} = \frac{\partial}{\partial x} \left( D_j \frac{\partial u_j}{\partial x} \right) + f_j,\,\,j=1...m,
+    \frac{\partial u_j}{\partial t} = D_\mathrm{out,~j}\frac{\partial}{\partial x} \left( D_j \frac{\partial u_j}{\partial x} \right) + f_j,\,\,j=1...m,
 \end{equation}
 ```
-where 
+where the diffusion coefficient, "outer" diffusion coefficient, and source function are all functions of the field, spatial, and temporal coordinates:
 ```math
 \begin{equation}
-    D_j = D_j(u, t, x), \,\,\,f_j = f_j(u, t, x).
+    D_j = D_j(u, t, x), \,\,\,D_\mathrm{out,~j} = D_\mathrm{out,~j}(u, t, x), \,\,\,f_j = f_j(u, t, x).
 \end{equation}
 ```
-The initial conditions are set as:
+
+The equation must be supplemented with initial and boundary conditoins. The initial condition:
 ```math
 \begin{equation}
     \vec{u}(t=0, x) = [u_{1, 0}(x), ..., u_{m, 0}(x)],
 \end{equation}
 ```
+
 and for boundary conditions there are three options. 
  - Periodic (only works for all fields at once, i.e. you
 cannot set periodic BCs for $u\_1$ and Dirichlet BCs for $u\_2$):
@@ -45,8 +50,8 @@ cannot set periodic BCs for $u\_1$ and Dirichlet BCs for $u\_2$):
 It is possible to apply Dirichlet and Neumann conditions in a mixed way, e.g. different BCs for 
 different fields $u\_j$ on $x\_i/x\_f$. 
 
-You feed the right-hand sides, as well as initial/boundary conditions, and get the
-solution on a grid of spatial grid x time grid. 
+You feed the source functions and diffusion coefficients, as well as initial/boundary conditions, and get the
+solution on a grid of $\mathrm{spatial~grid} \times \mathrm{time~grid}$. 
 
 
 ## Installation & Requirements 
@@ -98,7 +103,7 @@ Here the coefficient $D$, the diffusion coefficient, is a property of the rod, a
 the final stationary temperature distribution is easily guessed: $T\_\mathrm{final}(x) \equiv T\_\mathrm{right}$. Here is the code 
 for the numerical solution:
 ```python
-from diff_pde.lines_method import solve_diff_pde
+from diff_pde import solve_diff_pde
 import numpy as np
 
 D = 3
@@ -120,8 +125,8 @@ tf = 5
 Nt = 303
 t_ev = np.linspace(ti, tf, Nt)
 
-x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
-                        D_list = [D],
+x_ , [T,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
+                        D_list = [D], # since D is a scalar here, it can be passed as `D_out_list=[D]` instead.
                         x_grid=x_grid,
                         t_span=[ti, tf],
                         t_eval=t_ev,
@@ -138,7 +143,7 @@ x_ , [T_,] = solve_diff_pde(rhs_list = [lambda u, t, x: x*0],
                                  ], 
                         )
 ```
-In the end, you have an array `T\_` of shape: (x\_.size, t\_ev.size).
+In the end, you have an array `T` of shape: (x\_.size, t\_ev.size).
 
 You can run the code `simple_heat_anim.py` from terminal to see this solution animated.
 
@@ -162,7 +167,7 @@ periodic BCs (as if a small domain of a bigger picture is being simulated)
 take diffusion coeffients $D\_x$ and $D\_y$ sligtly spatially-dependent and non-linear (u-dependent).
 
 ```python
-from diff_pde.lines_method import solve_diff_pde
+from diff_pde import solve_diff_pde
 import numpy as np
 
 A = 2
@@ -213,7 +218,6 @@ x_ , (X_, Y_) = solve_diff_pde(rhs_list = [fx, fy],
                         u0_list=[x0, y0],
                         rtol=1e-7,
                         bc_type="neumann"
-                        # bc_type="dirichlet"
                         )
 ```
 You can run the code `brusselator_anim.py` from terminal to see this solution animated.
@@ -231,11 +235,19 @@ distribution of the temperature on this resulting rod, we would need to evolve
 $T\_1(t, x)$ and $T\_2(t, x)$ with different diffusion coefficients, keeping
 $T\_1(t, L\_1) = T\_2(t, L\_1)$ and  $D\_1 \partial\_x T\_1(t, L\_1) = D\_2 \partial\_x  T\_2(t, L\_1)$.
 Fortunately, since the code is written in a conservative manner, we can simply look for the solution
-at the whole $x = [0, L\_1 + L\_2]$ with discontinuous diffusion coefficient.
-
+at the whole $x = [0, L\_1 + L\_2]$ domain with discontinuous diffusion coefficient:
+```math
+\begin{equation}
+    D(x) = 
+    \begin{cases}
+        D1, \,\, 0 < x < L_1,\\
+        D2, \,\, L_1 < x < L_2.\\
+    \end{cases}
+\end{equation}
+```
 
 ```python
-from diff_pde.lines_method import solve_diff_pde
+from diff_pde import solve_diff_pde
 import numpy as np
 
 D1 = 8

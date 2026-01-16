@@ -262,10 +262,10 @@ def check_bcs(bc_type, regular_strs, special_strs, m):
 def solve_diff_pde(
     rhs_list,
     D_list,
-    *,
     x_grid,
     t_span: tuple[float, float],
     u0_list,
+    D_out_list=None,
     bc_type: str = "periodic",
     bound_conds=None,          # [[gL0,gR0],...,[gL_{m-1},gR_{m-1}]]; functions of t
     t_eval=None,
@@ -277,7 +277,7 @@ def solve_diff_pde(
     """
     Method-of-lines solver for m coupled 1D reaction–diffusion fields u_j(x,t):
 
-        du_j/dt = d/dx( D_j(U,t,x) * du_j/dx ) + rhs_j(U, t, xi, *args_j),
+        du_j/dt = D_out_j(U,t,x) d/dx( D_j(U,t,x) * du_j/dx ) + rhs_j(U, t, xi, *args_j),
         + u_j(t=t_i) = u0_l(x)
         + left/right boundary codition.
 
@@ -290,7 +290,7 @@ def solve_diff_pde(
     D_list: list of m items
         Each is either:
           - scalar diffusion coefficient, or
-          - callable D_j(U_fields, t, xi, j) -> array (N,)
+          - callable D_j(U_fields, t, xi) -> array (N,)
           
     x_grid: np.array of shape (N,)
         A grid to calculate the function on. Should be ascending.
@@ -298,6 +298,12 @@ def solve_diff_pde(
     u0_list: list of m callables
         Initial conditions: u0_list[j](xi) -> array (N,)
         each element shape (N,).
+    
+    D_list: list of m items or None (default)
+        If a list, each is either:
+          - scalar diffusion coefficient, or
+          - callable D_out_j(U_fields, t, xi) -> array (N,)
+        If None, transformed into a m-element list of ones: [1, .., 1].
     
     t_span: tuple (t_init, t_end).
         Times of start (initial condition is assumed to be at t_init) and 
@@ -345,6 +351,15 @@ def solve_diff_pde(
     N_x_grid = x_grid.size
     if m != len(D_list):
         raise ValueError("rhs_list and D_list must have the same length.")
+    if D_out_list is None:
+        D_out_list = [1.0 for _im in range(m)]
+    else:
+        if not isinstance(D_out_list, list):
+            raise ValueError("D_out_list should be either None or list of the same length as rhs_list")
+        else:
+            if m != len(D_out_list):
+                raise ValueError("rhs_list and D_out_list must have the same length.")
+                
     if m != len(u0_list):
         raise ValueError("rhs_list and u0_list must have the same length.")
     if len(rhs_args_list) != m:
@@ -369,6 +384,8 @@ def solve_diff_pde(
             raise ValueError("bound_conds should be either None, or a m-element list of 2-element lists. ")
     else:
         raise ValueError("bound_conds should be eitehr None, or a m-element list of 2-element lists. ")
+    
+    
         
     if_periodic, bc_to_use = check_bcs(bc_type = bc_type,
                                        regular_strs = ['dirichlet', 'neumann'],
@@ -384,6 +401,8 @@ def solve_diff_pde(
 
     # Normalize diffusion coefficients to callables
     D_callables = [_as_D_callable(Dj, N) for Dj in D_list]
+    D_out_callables = [_as_D_callable(D_out_j, N) for D_out_j in D_out_list]
+    
 
     # Initialize fields
     def _init(ic):
@@ -435,9 +454,12 @@ def solve_diff_pde(
 
             # Evaluate diffusion coefficient on centers
             Dc = np.asarray(D_callables[j](U_eff, t, xi), dtype=float)
+            Dout_j = np.asarray(D_out_callables[j](U_eff, t, xi), dtype=float)
             if Dc.shape != (N,):
                 raise ValueError(f"D[{j}] must return shape (N,), got {Dc.shape}")
-
+            if Dout_j.shape != (N,):
+                raise ValueError(f"D_out[{j}] must return shape (N,), got {Dout_j.shape}")
+                
             # dirichlet values and Neumann gradients if needed
             bcL_, bcR_ = bound_conds[j]
             diff = _diffusion_conservative_1d(Dc, uj, x_grid, bc_to_use[j],
@@ -449,7 +471,7 @@ def solve_diff_pde(
             if rj.shape != (N,):
                 raise ValueError(f"rhs[{j}] must return shape (N,), got {rj.shape}")
 
-            duj = diff + rj
+            duj = Dout_j * diff + rj
 
             # Strong Dirichlet enforcement: du/dt at boundaries equals g'(t)
             if not if_periodic:
