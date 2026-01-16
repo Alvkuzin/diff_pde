@@ -63,7 +63,7 @@ Normal installation:
 
 ```bash
 git clone https://github.com/Alvkuzin/diff_pde
-cd IBSEn
+cd diff_pde
 pip install .
 ```
 
