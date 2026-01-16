@@ -1,6 +1,6 @@
 # diff_pde: numerical solution of a system of 1d nonlinear PDEs of diffusive type.
 
-One function that  give you the solution.
+One function that will give you the solution.
 
 The purpose of this package is to solve one-dimensional partial differential equations of parabolic type (heat/diffusion type equations). The package can handle one equation or a system, linear and non-linear cases.
 
@@ -51,7 +51,7 @@ It is possible to apply Dirichlet and Neumann conditions in a mixed way, e.g. di
 different fields $u\_j$ on $x\_i/x\_f$. 
 
 You feed the source functions and diffusion coefficients, as well as initial/boundary conditions, and get the
-solution on a grid of $\mathrm{spatial~grid} \times \mathrm{time~grid}$. 
+solution on a grid of $\mathrm{spatial\~grid} \times \mathrm{time\~grid}$. 
 
 
 ## Installation & Requirements 
@@ -76,11 +76,13 @@ pip install -e .
 ## Usage
 
 The main idea is very simple: to solve for $m$ fields $u_j$, you provide:
- - an m-element list of right-hand side functions $f(u, t, x)$,
+ - an m-element list of source functions $f(u, t, x)$,
  - an m-element list of coefficients D, each is either a scalar or a function $D(u, t, x)$,
+ - optinally, an m-element list of coefficients $D\_\mathrm{out}$, each is either a scalar or a function $D\_\mathrm{out}(u, t, x)$,
+while by default they are set to unity,
  - an m-element list of initial conditions: functions $u_0(x)$,
- - an m-element list of 2-element lists of boundary conditions: $[g_\mathrm{left}(t), g_\mathrm{right}(t)]$.
- - a spatial grid $x_\mathrm{grid}$ as a numpy array; it defines nods at which the fields will be defined as grid functions.
+ - an m-element list of 2-element lists of boundary conditions: $[g_\mathrm{left}(t), g_\mathrm{right}(t)]$,
+ - a spatial grid $x_\mathrm{grid}$ as a numpy array; it defines nods at which the fields will be defined as grid functions,
  - a time grid at which the fields are to be returned.
 
 As a return, you get the m-element list of fields, each is a numpy array (x.size, t.size).
@@ -94,7 +96,7 @@ as a functtion of time $T(t, x)$ is described by the equation:
 \begin{split}
 \partial_t T(t, x) = D \partial^2_x T(t, x),\\
 \partial_x T|_{x=0} = 0,\\
-T(t, L) = \_\mathrm{right},\\
+T(t, L) = T\_\mathrm{right},\\
 T(t=0, x) = T_i(x).
 \end{split}
 ```
@@ -321,18 +323,40 @@ and the partial differential equation becomes the system of ODEs:
 This system is solved using `scipy.integrate.solve_ivp`, which allows us to avoid thinking how 
 is this system actually being solved. It is important to use `method='BDF'` (default) or `method='Radau'`,
 or any other _implicit_ methods which for the equation $dU/dt=f$ not just make an eulerian step
-$U\_{k+1} = U\_{k} + \Delta t f(U\_{k}, t_k)$ but solve the nonlineear equation
+$U\_{k+1} = U\_{k} + \Delta t f(U\_{k}, t_k)$ but solve the nonlinear equation
 $U\_{k+1} = U\_{k} + \Delta t f(U\_{k+1}, t_{k+1})$ at each time step. This is the equivalent
 of using the implicitly stable numerical scheme. 
 
-Outsourcing the ODEs to `solve_ivp` also allows not to think about time steps, as they are made automaticly,
-later returning solution at any desirable $t\_\mathrm{eval}$. The choice of a spatial grid, though, is the responsibility
-of a user. In case of periodic boundary conditions, the effective x-grid is used, which is an original x-grid with 
-the rightmost point omitted. The rightmost point for the solutions $u\_j$ is then manually added as $u\_j(t, x\_f) \equiv u\_j(t, x\_i)$
+### Note 1. System of PDEs.
+For a system of equations for fields [$u\_1,...,u\_m$], the right-hand side is calculated as described above for each field and then concatenated into 
+one vector, and the m
+fields are also packed into a one big vector [$u\_0...u\_N,u\_{N+1},...,u\_{mN}$] for which the ODE is solved with the concatenated right-hand. 
+
+### Note 2. Internal grid.
+Internally, the solution is looked for at the spatial grid $\xi$ which in case of Dirichlet/Neumann BCs coincides with the provided
+x-grid. In case of periodic boundary conditions, $\xi$ is an original x-grid with 
+the rightmost point omitted. The rightmost point for the solutions $u\_j$ is then manually added as $u\_j(t, x\_f) \equiv u\_j(t, x\_i)$.
+This is the numerical reason why periodic boundary conditions cannot be mixed with other BCs for different fields: they would "live" on 
+different grids. This problem may be overcome, though.
+
+### Note 3. Order of finite differences approximations.
+
+Outsourcing the ODEs to `solve_ivp` allows not to think about time steps, as they are made automaticly by the solver,
+ which returns a solution at any desired $t\_\mathrm{eval}$. The choice of a spatial grid, though, is the responsibility
+of a user.
 
 I attempted to write a code with the second-order spatial approximations. I tested it on some 'good' functions,
-and the metric $R = \sqrt{\frac{1}{N\_x} \sum_ij (u^{ij}\_\mathrm{numerical} - u^{ij}\_\mathrm{analytical})^2 }$ indeed behaves as
-$R \propto 1/N\_x^2$. The test with the discontinuous diffusion coefficient revealed $R \propto 1/N\_x$.
+and the metric 
+```math
+\begin{equation}
+R = \sqrt{\frac{1}{N\_x} \sum_{ij} (u^{ij}\_\mathrm{numerical} - u^{ij}\_\mathrm{analytical})^2 }
+\end{equation}
+```
+
+ indeed behaves as
+$R \propto 1/N\_x^2$, even for the non equally spaced grids. The test with the discontinuous diffusion coefficient, though, revealed $R \propto 1/N\_x$.
+Note also that the arguments `rtol/atol` that may be provided to the `solve_diff_pde` refer to the arguments passed to the `solve_ivp`, e.g.
+they do not guarantee these relative/absolute tolerance for a solution.
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 ---
